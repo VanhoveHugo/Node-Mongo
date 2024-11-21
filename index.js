@@ -4,6 +4,7 @@ const path = require("path");
 let app = express();
 
 const routes = require("./controllers/routes");
+const auth = require("./controllers/auth");
 const mongoose = require("mongoose");
 const session = require("express-session");
 
@@ -35,6 +36,13 @@ mongoose
   .then(() => console.log("✅ Connected to MongoDB"))
   .catch((error) => console.error("❌ MongoDB Connection Error:", error));
 
+// Middleware to check if the user is logged in
+app.use((req, res, next) => {
+  if (req.session.user) console.log("Login as: ", req.session.user.email);
+  next();
+});
+
 app.use(routes);
+app.use(auth);
 
 app.listen(process.env.PORT);

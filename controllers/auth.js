@@ -1,63 +1,100 @@
 const router = require("express").Router();
 const User = require("../models/user.models");
+const bcrypt = require("bcrypt");
 
 /*
-  * @route GET /login
-  */
+ * @route GET /login
+ */
 router.get("/login", (req, res) => {
   res.render("login");
 });
 
 /*
-  * @route POST /login
-  */
-router.post("/login", (req, res) => {
+ * @route POST /login
+ */
+router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
-  // TODO: check all fields
+  // Check required fields
+  if (!email || !password) {
+    return res.status(400).json({ message: "Please fill in all fields" });
+  }
 
-  // TODO: check if user exists in the database with the email
+  // Find if the user exists
+  const user = await User.findOne({ email });
 
-  // TODO: return if user does not exist
+  // If the user does not exist, return an error
+  if (!user) {
+    return res.status(400).json({ message: "Email not found" });
+  }
 
-  // TODO: check if the password is matching
+  // Compare passwords
+  const isMatch = await bcrypt.compare(password, user.password);
 
-  // TODO: return if the email or password is invalid
+  // If the passwords do not match, return an error
+  if (!isMatch) {
+    return res.status(400).json({ message: "Invalid credentials" });
+  }
 
-  // TODO: create a session
+  // Set the session
+  req.session.user = user;
 
-  res.redirect("/")
+  // Redirect to the home page
+  res.redirect("/");
 });
 
-
 /*
-  * @route GET /register
-  */
+ * @route GET /register
+ */
 router.get("/register", (req, res) => {
   res.render("register");
 });
 
 /*
-  * @route POST /register
-  */
+ * @route POST /register
+ */
 router.post("/register", async (req, res) => {
   const { pseudo, email, password } = req.body;
 
-  // TODO: check all fields
+  // Check required fields
+  if (!email || !password) {
+    return res.status(400).json({ message: "Please fill in all fields" });
+  }
 
-  // TODO: return if one field is missing / invalid
+  // Check password length
+  if (password.length < 8) {
+    return res
+      .status(400)
+      .json({ message: "Password must be at least 8 characters" });
+  }
 
-  // TODO: hash password before saving it to the database
+  // Check password complexity
+  if (
+    !password.match(
+      /(?=^.{8,}$)((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/
+    )
+  ) {
+    return res.status(400).json({
+      message:
+        "Password must contain at least one uppercase letter, one lowercase letter, one number and one special character",
+    });
+  }
 
+  // Hash password
+  const hash = await bcrypt.hash(password, 10);
+
+  // Create new user
   const newUser = new User({
     pseudo,
     email,
-    password,
+    password: hash,
   });
 
+  // Save user
   await newUser.save();
 
-  res.json(newUser);
+  // Redirect to login
+  res.redirect("/login");
 });
 
 module.exports = router;
